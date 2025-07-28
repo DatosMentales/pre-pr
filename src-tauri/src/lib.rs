@@ -76,6 +76,9 @@ async fn analyze_code(
         file_contents.join("\n---\n")
     );
 
+    // Log the prompt length
+    println!("Prompt length: {}", prompt.len());
+
     // Call the appropriate LLM API
     let response = match llm_provider.as_str() {
         "openai" => call_openai_api(&prompt, &api_key, &model).await?,
@@ -96,6 +99,7 @@ async fn call_openai_api(prompt: &str, api_key: &str, model: &str) -> Result<Str
 
     let response = client.post("https://api.openai.com/v1/chat/completions")
         .header("Authorization", format!("Bearer {}", api_key))
+        .header("Content-Type", "application/json")
         .json(&request_body)
         .send()
         .await
@@ -117,6 +121,7 @@ async fn call_anthropic_api(prompt: &str, api_key: &str, model: &str) -> Result<
     let response = client.post("https://api.anthropic.com/v1/messages")
         .header("x-api-key", api_key)
         .header("anthropic-version", "2023-06-01")
+        .header("Content-Type", "application/json")
         .json(&request_body)
         .send()
         .await
@@ -141,7 +146,8 @@ async fn call_local_llm(prompt: &str, model: &str) -> Result<String, String> {
         serde_json::json!({
             "model": model_name,
             "prompt": prompt,
-            "stream": false
+            "stream": false,
+            "keep_alive": "5m" // Add keep_alive for Ollama
         })
     } else {
         serde_json::json!({
@@ -152,6 +158,7 @@ async fn call_local_llm(prompt: &str, model: &str) -> Result<String, String> {
     };
 
     let response = client.post(base_url)
+        .header("Content-Type", "application/json") // Explicitly set Content-Type
         .json(&request_body)
         .send()
         .await
