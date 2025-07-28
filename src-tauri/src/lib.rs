@@ -64,6 +64,7 @@ async fn get_local_llm_models() -> Result<Vec<String>, String> {
 async fn analyze_code(
     file_paths: Vec<String>,
     standards_path: String,
+    example_file_path: Option<String>,
     llm_provider: String,
     api_key: String,
     model: String,
@@ -80,19 +81,7 @@ async fn analyze_code(
 
     // Construct the prompt for the LLM
     let prompt = format!(
-        "You are a code review assistant. Analyze the following code files based on the provided standards. \n\n\
-        Respond in Markdown format. For each finding, use a diff-like notation: \n\
-        - Use '-' for non-compliance or issues. \n\
-        - Use '+' for recommendations or improvements. \n\
-        - Use '!' for general comments or observations. \n\n\
-        Example: \n\
-        ```diff\n\
-        - src/main.rs: Line 10: Function 'foo' lacks documentation.\n\
-        + src/main.rs: Consider adding unit tests for 'bar'.\n\
-        ! src/utils.rs: Overall code quality is good.\n\
-        ```\n\n\
-        Standards:\n{}\n\n\
-        Code Files:\n{}",
+        "Eres un asistente de revisión de código. Analiza los siguientes archivos de código basándote en los estándares proporcionados. \n\n\n        Responde en formato Markdown. Para cada hallazgo, utiliza una notación similar a un diff: \n\n\n        - Usa '-' para incumplimientos o problemas. \n\n\n        - Usa '+' para recomendaciones o mejoras. \n\n\n        - Usa '!' para comentarios u observaciones generales. \n\n\n        Ejemplo: \n\n\n        ```diff\n\n\n        - src/main.rs: Línea 10: La función 'foo' carece de documentación.\n\n\n        + src/main.rs: Considera agregar pruebas unitarias para 'bar'.\n\n\n        ! src/utils.rs: La calidad general del código es buena.\n\n\n        ```\n\n\n        Estándares:\n{}\n\n\n        Archivos de Código:\n{}",
         standards_content,
         file_contents.join("\n---\n")
     );
@@ -174,6 +163,7 @@ async fn call_google_api(prompt: &str, api_key: &str, model: &str) -> Result<Str
         .map_err(|e| e.to_string())?;
 
     let response_json: serde_json::Value = response.json().await.map_err(|e| e.to_string())?;
+    println!("Google API full response: {:?}", response_json);
 
     let content = response_json["candidates"][0]["content"]["parts"][0]["text"].as_str().unwrap_or("").to_string();
     Ok(content)

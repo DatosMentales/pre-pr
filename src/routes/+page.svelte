@@ -1,16 +1,16 @@
 <script lang="ts">
   import { open } from '@tauri-apps/plugin-dialog';
-  import { readTextFile } from '@tauri-apps/plugin-fs'; // Re-adding this import
+  
   import { invoke } from '@tauri-apps/api/core';
   import { marked } from 'marked';
 
   let selectedFiles = $state<string[]>([]);
   let standardsFile = $state<string | null>(null);
+  let exampleFile = $state<string | null>(null);
   let llmProvider = $state<'openai' | 'anthropic' | 'google' | 'local'>('openai');
   let apiKey = $state('');
   let model = $state('');
   let evaluationResult = $state('');
-  let renderedHtml = $derived(marked.parse(evaluationResult)); // Derived state for rendered HTML
   let isLoading = $state(false);
   let localModels = $state<string[]>([]);
   let darkMode = $state(false); // State for dark mode
@@ -30,12 +30,11 @@
     return `<p>${text}</p>\n`;
   };
 
-  // Configure marked with the custom renderer
-  marked.setOptions({
+  let renderedHtml = $derived(marked.parse(evaluationResult, {
     renderer: renderer,
     gfm: true, // Enable GitHub Flavored Markdown
     breaks: true, // Enable GFM line breaks
-  });
+  })); // Derived state for rendered HTML
 
   async function selectFiles() {
     const result = await open({
@@ -58,6 +57,19 @@
     });
     if (typeof result === 'string') {
       standardsFile = result;
+    }
+  }
+
+  async function selectExampleFile() {
+    const result = await open({
+      multiple: false,
+      filters: [{
+        name: 'Example File',
+        extensions: ['txt', 'rs', 'js', 'ts', 'py', 'java', 'cpp', 'h', 'c', 'cs', 'go', 'rb', 'php', 'html', 'css', 'json', 'xml', 'md']
+      }]
+    });
+    if (typeof result === 'string') {
+      exampleFile = result;
     }
   }
 
@@ -162,7 +174,7 @@
   <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-8 w-full max-w-7xl lg:max-w-full xl:max-w-screen-xl 2xl:max-w-screen-2xl transition-colors duration-300">
     <div class="flex justify-between items-center mb-8">
       <h1 class="text-4xl font-extrabold text-gray-800 dark:text-white text-center flex-grow">PR Standards Evaluator</h1>
-      <button on:click={toggleDarkMode} class="p-2 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-300">
+      <button onclick={toggleDarkMode} class="p-2 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-300">
         {#if darkMode}
           <!-- Sun icon for light mode -->
           <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -182,7 +194,7 @@
       <div>
         <div class="mb-8 p-6 bg-gray-50 dark:bg-gray-700 rounded-lg shadow-sm transition-colors duration-300">
           <h2 class="text-2xl font-semibold text-gray-700 dark:text-white mb-4">1. Select Source Files</h2>
-          <button on:click={selectFiles} class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
+          <button onclick={selectFiles} class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
             {selectedFiles.length > 0 ? `${selectedFiles.length} files selected` : 'Select Files'}
           </button>
           <ul class="mt-4 space-y-2 text-gray-600 dark:text-gray-300 text-sm">
@@ -194,11 +206,21 @@
 
         <div class="mb-8 p-6 bg-gray-50 dark:bg-gray-700 rounded-lg shadow-sm transition-colors duration-300">
           <h2 class="text-2xl font-semibold text-gray-700 dark:text-white mb-4">2. Select Standards File</h2>
-          <button on:click={selectStandardsFile} class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
+          <button onclick={selectStandardsFile} class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
             {standardsFile ? standardsFile : 'Select Standards (.txt, .json, .md)'}
           </button>
           {#if standardsFile}
             <p class="mt-4 text-gray-600 dark:text-gray-300 text-sm bg-gray-100 dark:bg-gray-600 p-2 rounded-md truncate transition-colors duration-300">{standardsFile}</p>
+          {/if}
+        </div>
+
+        <div class="mb-8 p-6 bg-gray-50 dark:bg-gray-700 rounded-lg shadow-sm transition-colors duration-300">
+          <h2 class="text-2xl font-semibold text-gray-700 dark:text-white mb-4">3. Select Example File (Optional)</h2>
+          <button onclick={selectExampleFile} class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
+            {exampleFile ? exampleFile : 'Select Example File'}
+          </button>
+          {#if exampleFile}
+            <p class="mt-4 text-gray-600 dark:text-gray-300 text-sm bg-gray-100 dark:bg-gray-600 p-2 rounded-md truncate transition-colors duration-300">{exampleFile}</p>
           {/if}
         </div>
 
@@ -255,15 +277,15 @@
           {/if}
 
           <div class="flex space-x-4 mt-6">
-            <button on:click={saveConfig} class="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50">
+            <button onclick={saveConfig} class="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50">
               Save Config
             </button>
-            <button on:click={loadConfig} class="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50">
+            <button onclick={loadConfig} class="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50">
               Load Config
             </button>
           </div>
 
-          <button on:click={runEvaluation} class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 mt-4" disabled={isLoading}>
+          <button onclick={runEvaluation} class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 mt-4" disabled={isLoading}>
             {#if isLoading}
               <span class="inline-block w-5 h-5 border-2 border-t-2 border-white rounded-full animate-spin mr-2"></span>
             {/if}
@@ -273,9 +295,9 @@
       </div>
 
       <!-- Right Column: Results -->
-      <div class="p-6 bg-gray-50 dark:bg-gray-700 rounded-lg shadow-sm flex flex-col transition-colors duration-300">
+      <div class="p-6 bg-gray-50 dark:bg-gray-700 rounded-lg shadow-sm flex flex-col transition-colors duration-300 text-white">
         <h2 class="text-2xl font-semibold text-gray-700 dark:text-white mb-4">Evaluation Results</h2>
-        <div class="flex-grow bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-600 overflow-auto max-h-[600px] transition-colors duration-300">
+        <div class="flex-grow bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-600 overflow-auto h-[calc(100vh-200px)] transition-colors duration-300">
           {#if evaluationResult}
             <div class="prose dark:prose-invert max-w-none">
               {@html renderedHtml}
@@ -291,12 +313,12 @@
 
 <style lang="postcss">
   .diff-added {
-    @apply text-green-600 !important;
+    color: #10B981; /* green-600 */
   }
   .diff-removed {
-    @apply text-red-600 !important;
+    color: #EF4444; /* red-600 */
   }
   .diff-comment {
-    @apply text-blue-600 !important;
+    color: #3B82F6; /* blue-600 */
   }
 </style>

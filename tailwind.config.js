@@ -4,5 +4,10 @@ export default {
   theme: {
     extend: {},
   },
+  safelist: [
+    'text-green-600',
+    'text-red-600',
+    'text-blue-600',
+  ],
   plugins: [],
 }
