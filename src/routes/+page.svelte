@@ -1,16 +1,41 @@
 <script lang="ts">
   import { open } from '@tauri-apps/plugin-dialog';
-  import { readTextFile } from '@tauri-apps/plugin-fs';
+  import { readTextFile } from '@tauri-apps/plugin-fs'; // Re-adding this import
   import { invoke } from '@tauri-apps/api/core';
+  import { marked } from 'marked';
 
-  let selectedFiles: string[] = [];
-  let standardsFile: string | null = null;
-  let llmProvider: 'openai' | 'anthropic' | 'local' = 'openai';
-  let apiKey = '';
-  let model = '';
-  let evaluationResult = '';
-  let isLoading = false;
-  let localModels: string[] = [];
+  let selectedFiles = $state<string[]>([]);
+  let standardsFile = $state<string | null>(null);
+  let llmProvider = $state<'openai' | 'anthropic' | 'google' | 'local'>('openai');
+  let apiKey = $state('');
+  let model = $state('');
+  let evaluationResult = $state('');
+  let renderedHtml = $derived(marked.parse(evaluationResult)); // Derived state for rendered HTML
+  let isLoading = $state(false);
+  let localModels = $state<string[]>([]);
+  let darkMode = $state(false); // State for dark mode
+
+  // Custom Marked renderer
+  const renderer = new marked.Renderer();
+  renderer.paragraph = (text) => {
+    if (text.startsWith('+ ')) {
+      return `<p class="diff-added">${text}</p>\n`;
+    }
+    if (text.startsWith('- ')) {
+      return `<p class="diff-removed">${text}</p>\n`;
+    }
+    if (text.startsWith('! ')) {
+      return `<p class="diff-comment">${text}</p>\n`;
+    }
+    return `<p>${text}</p>\n`;
+  };
+
+  // Configure marked with the custom renderer
+  marked.setOptions({
+    renderer: renderer,
+    gfm: true, // Enable GitHub Flavored Markdown
+    breaks: true, // Enable GFM line breaks
+  });
 
   async function selectFiles() {
     const result = await open({
@@ -57,8 +82,44 @@
   }
 
   // Fetch local models when the provider changes to 'local'
-  $: if (llmProvider === 'local') {
-    fetchLocalModels();
+  $effect(() => {
+    if (llmProvider === 'local') {
+      fetchLocalModels();
+    }
+  });
+
+  // Toggle dark mode
+  function toggleDarkMode() {
+    darkMode = !darkMode;
+  }
+
+  $effect(() => {
+    document.documentElement.classList.toggle('dark', darkMode);
+  });
+
+  async function saveConfig() {
+    try {
+      await invoke('save_llm_config', {
+        llmProvider: llmProvider,
+        apiKey: apiKey,
+        model: model,
+      });
+      alert('Configuration saved successfully!');
+    } catch (error) {
+      alert(`Failed to save configuration: ${error}`);
+    }
+  }
+
+  async function loadConfig() {
+    try {
+      const config = await invoke('load_llm_config');
+      llmProvider = config.llm_provider as typeof llmProvider;
+      apiKey = config.api_key as string;
+      model = config.model as string;
+      alert('Configuration loaded successfully!');
+    } catch (error) {
+      alert(`Failed to load configuration: ${error}`);
+    }
   }
 
   async function runEvaluation() {
@@ -97,48 +158,64 @@
   }
 </script>
 
-<main class="min-h-screen bg-gray-100 p-8 flex items-center justify-center">
-  <div class="bg-white rounded-lg shadow-xl p-8 w-full max-w-6xl">
-    <h1 class="text-4xl font-extrabold text-gray-800 mb-8 text-center">PR Standards Evaluator</h1>
+<main class="min-h-screen bg-gray-100 dark:bg-gray-900 p-8 flex items-center justify-center transition-colors duration-300">
+  <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-8 w-full max-w-7xl lg:max-w-full xl:max-w-screen-xl 2xl:max-w-screen-2xl transition-colors duration-300">
+    <div class="flex justify-between items-center mb-8">
+      <h1 class="text-4xl font-extrabold text-gray-800 dark:text-white text-center flex-grow">PR Standards Evaluator</h1>
+      <button on:click={toggleDarkMode} class="p-2 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-300">
+        {#if darkMode}
+          <!-- Sun icon for light mode -->
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h1M3 12H2m15.325-4.775l-.707-.707M6.343 6.343l-.707-.707m12.728 12.728l-.707-.707M6.343 17.657l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+          </svg>
+        {:else}
+          <!-- Moon icon for dark mode -->
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+          </svg>
+        {/if}
+      </button>
+    </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-12">
       <!-- Left Column: Configuration -->
       <div>
-        <div class="mb-8 p-6 bg-gray-50 rounded-lg shadow-sm">
-          <h2 class="text-2xl font-semibold text-gray-700 mb-4">1. Select Source Files</h2>
+        <div class="mb-8 p-6 bg-gray-50 dark:bg-gray-700 rounded-lg shadow-sm transition-colors duration-300">
+          <h2 class="text-2xl font-semibold text-gray-700 dark:text-white mb-4">1. Select Source Files</h2>
           <button on:click={selectFiles} class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
             {selectedFiles.length > 0 ? `${selectedFiles.length} files selected` : 'Select Files'}
           </button>
-          <ul class="mt-4 space-y-2 text-gray-600 text-sm">
+          <ul class="mt-4 space-y-2 text-gray-600 dark:text-gray-300 text-sm">
             {#each selectedFiles as file}
-              <li class="bg-gray-100 p-2 rounded-md truncate">{file}</li>
+              <li class="bg-gray-100 dark:bg-gray-600 p-2 rounded-md truncate transition-colors duration-300">{file}</li>
             {/each}
           </ul>
         </div>
 
-        <div class="mb-8 p-6 bg-gray-50 rounded-lg shadow-sm">
-          <h2 class="text-2xl font-semibold text-gray-700 mb-4">2. Select Standards File</h2>
+        <div class="mb-8 p-6 bg-gray-50 dark:bg-gray-700 rounded-lg shadow-sm transition-colors duration-300">
+          <h2 class="text-2xl font-semibold text-gray-700 dark:text-white mb-4">2. Select Standards File</h2>
           <button on:click={selectStandardsFile} class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
             {standardsFile ? standardsFile : 'Select Standards (.txt, .json, .md)'}
           </button>
           {#if standardsFile}
-            <p class="mt-4 text-gray-600 text-sm bg-gray-100 p-2 rounded-md truncate">{standardsFile}</p>
+            <p class="mt-4 text-gray-600 dark:text-gray-300 text-sm bg-gray-100 dark:bg-gray-600 p-2 rounded-md truncate transition-colors duration-300">{standardsFile}</p>
           {/if}
         </div>
 
-        <div class="mb-8 p-6 bg-gray-50 rounded-lg shadow-sm">
-          <h2 class="text-2xl font-semibold text-gray-700 mb-4">3. Configure LLM</h2>
+        <div class="mb-8 p-6 bg-gray-50 dark:bg-gray-700 rounded-lg shadow-sm transition-colors duration-300">
+          <h2 class="text-2xl font-semibold text-gray-700 dark:text-white mb-4">3. Configure LLM</h2>
           <div class="mb-4">
-            <label class="block text-gray-700 text-sm font-bold mb-2" for="llm-provider">
+            <label class="block text-gray-700 dark:text-gray-200 text-sm font-bold mb-2" for="llm-provider">
               LLM Provider
             </label>
             <div class="relative">
-              <select id="llm-provider" bind:value={llmProvider} class="block appearance-none w-full bg-white border border-gray-300 text-gray-700 py-3 px-4 pr-8 rounded-lg leading-tight focus:outline-none focus:bg-white focus:border-blue-500 shadow-sm">
+              <select id="llm-provider" bind:value={llmProvider} class="block appearance-none w-full bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 text-gray-700 dark:text-white py-3 px-4 pr-8 rounded-lg leading-tight focus:outline-none focus:bg-white dark:focus:bg-gray-600 focus:border-blue-500 shadow-sm transition-colors duration-300">
                 <option value="openai">OpenAI</option>
                 <option value="anthropic">Anthropic</option>
+                <option value="google">Google (Gemini)</option>
                 <option value="local">Local (Ollama/LMStudio)</option>
               </select>
-              <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+              <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-200">
                 <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
               </div>
             </div>
@@ -146,38 +223,47 @@
 
           {#if llmProvider !== 'local'}
             <div class="mb-4">
-              <label class="block text-gray-700 text-sm font-bold mb-2" for="api-key">
+              <label class="block text-gray-700 dark:text-gray-200 text-sm font-bold mb-2" for="api-key">
                 API Key
               </label>
-              <input id="api-key" type="password" bind:value={apiKey} placeholder="Enter your API key" class="shadow-sm appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+              <input id="api-key" type="password" bind:value={apiKey} placeholder="Enter your API key" class="shadow-sm appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 dark:text-white dark:bg-gray-600 dark:border-gray-500 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-300" />
             </div>
             <div class="mb-4">
-              <label class="block text-gray-700 text-sm font-bold mb-2" for="model">
+              <label class="block text-gray-700 dark:text-gray-200 text-sm font-bold mb-2" for="model">
                 Model Name
               </label>
-              <input id="model" type="text" bind:value={model} placeholder="e.g., gpt-4, claude-2" class="shadow-sm appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+              <input id="model" type="text" bind:value={model} placeholder="e.g., gpt-4, claude-2" class="shadow-sm appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 dark:text-white dark:bg-gray-600 dark:border-gray-500 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-300" />
             </div>
           {:else}
             <div class="mb-4">
-              <label class="block text-gray-700 text-sm font-bold mb-2" for="local-model">
+              <label class="block text-gray-700 dark:text-gray-200 text-sm font-bold mb-2" for="local-model">
                 Local Model
               </label>
               <div class="relative">
-                <select id="local-model" bind:value={model} class="block appearance-none w-full bg-white border border-gray-300 text-gray-700 py-3 px-4 pr-8 rounded-lg leading-tight focus:outline-none focus:bg-white focus:border-blue-500 shadow-sm" disabled={isLoading}>
+                <select id="local-model" bind:value={model} class="block appearance-none w-full bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 text-gray-700 dark:text-white py-3 px-4 pr-8 rounded-lg leading-tight focus:outline-none focus:bg-white dark:focus:bg-gray-600 focus:border-blue-500 shadow-sm transition-colors duration-300" disabled={isLoading}>
                   {#each localModels as localModel}
                     <option value={localModel}>{localModel}</option>
                   {:else}
                     <option value="" disabled>No local models found</option>
                   {/each}
                 </select>
-                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-200">
                   <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
                 </div>
               </div>
             </div>
           {/if}
 
-          <button on:click={runEvaluation} class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50" disabled={isLoading}>
+          <div class="flex space-x-4 mt-6">
+            <button on:click={saveConfig} class="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50">
+              Save Config
+            </button>
+            <button on:click={loadConfig} class="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50">
+              Load Config
+            </button>
+          </div>
+
+          <button on:click={runEvaluation} class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 mt-4" disabled={isLoading}>
             {#if isLoading}
               <span class="inline-block w-5 h-5 border-2 border-t-2 border-white rounded-full animate-spin mr-2"></span>
             {/if}
@@ -187,18 +273,30 @@
       </div>
 
       <!-- Right Column: Results -->
-      <div class="p-6 bg-gray-50 rounded-lg shadow-sm flex flex-col">
-        <h2 class="text-2xl font-semibold text-gray-700 mb-4">Evaluation Results</h2>
-        <div class="flex-grow bg-white p-4 rounded-lg border border-gray-200 overflow-auto max-h-[600px]">
+      <div class="p-6 bg-gray-50 dark:bg-gray-700 rounded-lg shadow-sm flex flex-col transition-colors duration-300">
+        <h2 class="text-2xl font-semibold text-gray-700 dark:text-white mb-4">Evaluation Results</h2>
+        <div class="flex-grow bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-600 overflow-auto max-h-[600px] transition-colors duration-300">
           {#if evaluationResult}
-            <div class="prose max-w-none">
-              {@html evaluationResult}
+            <div class="prose dark:prose-invert max-w-none">
+              {@html renderedHtml}
             </div>
           {:else}
-            <p class="text-gray-500">Results will be displayed here.</p>
+            <p class="text-gray-500 dark:text-gray-400">Results will be displayed here.</p>
           {/if}
         </div>
       </div>
     </div>
   </div>
 </main>
+
+<style lang="postcss">
+  .diff-added {
+    @apply text-green-600 !important;
+  }
+  .diff-removed {
+    @apply text-red-600 !important;
+  }
+  .diff-comment {
+    @apply text-blue-600 !important;
+  }
+</style>

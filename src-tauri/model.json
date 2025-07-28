@@ -1,0 +1,5 @@
+{
+  "llm_provider": "google",
+  "api_key": "AIzaSyCyy_kgLkyDh8k09nz5WM-ynmzvmW6ct38",
+  "model": "gemini-2.5-flash"
+}

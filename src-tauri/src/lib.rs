@@ -1,6 +1,17 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #![allow(unused_variables)] // Allow unused variables for now
 
+use serde::{Deserialize, Serialize};
+use std::fs;
+use std::env;
+
+#[derive(Debug, Serialize, Deserialize)]
+struct LlmConfig {
+    llm_provider: String,
+    api_key: String,
+    model: String,
+}
+
 #[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
@@ -60,16 +71,26 @@ async fn analyze_code(
     // Read the content of the files
     let mut file_contents = Vec::new();
     for path in &file_paths {
-        let content = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
+        let content = fs::read_to_string(path).map_err(|e| e.to_string())?;
         file_contents.push(content);
     }
 
     // Read the content of the standards file
-    let standards_content = std::fs::read_to_string(standards_path).map_err(|e| e.to_string())?;
+    let standards_content = fs::read_to_string(standards_path).map_err(|e| e.to_string())?;
 
     // Construct the prompt for the LLM
     let prompt = format!(
-        "Analyze the following code files based on the provided standards.\n\n\
+        "You are a code review assistant. Analyze the following code files based on the provided standards. \n\n\
+        Respond in Markdown format. For each finding, use a diff-like notation: \n\
+        - Use '-' for non-compliance or issues. \n\
+        - Use '+' for recommendations or improvements. \n\
+        - Use '!' for general comments or observations. \n\n\
+        Example: \n\
+        ```diff\n\
+        - src/main.rs: Line 10: Function 'foo' lacks documentation.\n\
+        + src/main.rs: Consider adding unit tests for 'bar'.\n\
+        ! src/utils.rs: Overall code quality is good.\n\
+        ```\n\n\
         Standards:\n{}\n\n\
         Code Files:\n{}",
         standards_content,
@@ -83,6 +104,7 @@ async fn analyze_code(
     let response = match llm_provider.as_str() {
         "openai" => call_openai_api(&prompt, &api_key, &model).await?,
         "anthropic" => call_anthropic_api(&prompt, &api_key, &model).await?,
+        "google" => call_google_api(&prompt, &api_key, &model).await?,
         "local" => call_local_llm(&prompt, &model).await?,
         _ => return Err("Invalid LLM provider".to_string()),
     };
@@ -129,6 +151,31 @@ async fn call_anthropic_api(prompt: &str, api_key: &str, model: &str) -> Result<
 
     let response_json: serde_json::Value = response.json().await.map_err(|e| e.to_string())?;
     let content = response_json["content"][0]["text"].as_str().unwrap_or("").to_string();
+    Ok(content)
+}
+
+async fn call_google_api(prompt: &str, api_key: &str, model: &str) -> Result<String, String> {
+    let client = reqwest::Client::new();
+    let url = format!("https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}", model, api_key);
+
+    let request_body = serde_json::json!({
+        "contents": [{
+            "parts": [{
+                "text": prompt
+            }]
+        }]
+    });
+
+    let response = client.post(&url)
+        .header("Content-Type", "application/json")
+        .json(&request_body)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let response_json: serde_json::Value = response.json().await.map_err(|e| e.to_string())?;
+
+    let content = response_json["candidates"][0]["content"]["parts"][0]["text"].as_str().unwrap_or("").to_string();
     Ok(content)
 }
 
@@ -182,13 +229,45 @@ async fn call_local_llm(prompt: &str, model: &str) -> Result<String, String> {
     }
 }
 
+#[tauri::command]
+async fn save_llm_config(
+    llm_provider: String,
+    api_key: String,
+    model: String,
+) -> Result<(), String> {
+    let config = LlmConfig { llm_provider, api_key, model };
+    let config_json = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
+
+    let current_dir = env::current_dir().map_err(|e| e.to_string())?;
+    let config_path = current_dir.join("model.json");
+
+    fs::write(&config_path, config_json).map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+async fn load_llm_config() -> Result<LlmConfig, String> {
+    let current_dir = env::current_dir().map_err(|e| e.to_string())?;
+    let config_path = current_dir.join("model.json");
+
+    if !config_path.exists() {
+        return Err("No saved configuration found.".to_string());
+    }
+
+    let config_json = fs::read_to_string(&config_path).map_err(|e| e.to_string())?;
+    let config: LlmConfig = serde_json::from_str(&config_json).map_err(|e| e.to_string())?;
+
+    Ok(config)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
-        .invoke_handler(tauri::generate_handler![greet, get_local_llm_models, analyze_code])
+        .invoke_handler(tauri::generate_handler![greet, get_local_llm_models, analyze_code, save_llm_config, load_llm_config])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
