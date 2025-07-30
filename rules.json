@@ -1,0 +1,9 @@
+{
+    "regla 1":{
+        "descripcion": "El nombre de la tabla debe ser singular, usar snake_case y usar prefijo tr en caso de ser transaccional",
+        "ejemplo":"tr_registro_diario"
+    },
+    "regla 2":{
+        "descripcion":""
+    }
+}

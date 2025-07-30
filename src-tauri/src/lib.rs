@@ -68,38 +68,80 @@ async fn analyze_code(
     llm_provider: String,
     api_key: String,
     model: String,
+    output_language: String,
 ) -> Result<String, String> {
-    // Read the content of the files
+    // Read the content of the files to be analyzed
     let mut file_contents = Vec::new();
     for path in &file_paths {
-        let content = fs::read_to_string(path).map_err(|e| e.to_string())?;
+        let content = fs::read_to_string(path).map_err(|e| format!("Failed to read file {}: {}", path, e))?;
         file_contents.push(content);
     }
 
     // Read the content of the standards file
-    let standards_content = fs::read_to_string(standards_path).map_err(|e| e.to_string())?;
+    let standards_content = fs::read_to_string(&standards_path).map_err(|e| format!("Failed to read standards file {}: {}", standards_path, e))?;
 
-    // Construct the prompt for the LLM
+    // Read the content of the example file, if provided
+    let example_content = match example_file_path {
+        Some(path) => fs::read_to_string(&path).map_err(|e| format!("Failed to read example file {}: {}", path, e))?,
+        None => String::new(),
+    };
+
+    // Construct the example section of the prompt only if there is content
+    let example_prompt_section = if !example_content.is_empty() {
+        format!(
+            "\n\nAdicionalmente, aquí tienes un ejemplo de código que cumple con los estándares. Úsalo como referencia para tu análisis:\n\n--- INICIO EJEMPLO DE CÓDIGO ---\n{}\n--- FIN EJEMPLO DE CÓDIGO ---\n",
+            example_content
+        )
+    } else {
+        String::new()
+    };
+
+    // Construct the final prompt for the LLM
     let prompt = format!(
-        "Eres un asistente de revisión de código. Analiza los siguientes archivos de código basándote en los estándares proporcionados. \n\n\n        Responde en formato Markdown. Para cada hallazgo, utiliza una notación similar a un diff: \n\n\n        - Usa '-' para incumplimientos o problemas. \n\n\n        - Usa '+' para recomendaciones o mejoras. \n\n\n        - Usa '!' para comentarios u observaciones generales. \n\n\n        Ejemplo: \n\n\n        ```diff\n\n\n        - src/main.rs: Línea 10: La función 'foo' carece de documentación.\n\n\n        + src/main.rs: Considera agregar pruebas unitarias para 'bar'.\n\n\n        ! src/utils.rs: La calidad general del código es buena.\n\n\n        ```\n\n\n        Estándares:\n{}\n\n\n        Archivos de Código:\n{}",
+        "Eres un asistente experto en revisión de código. Tu tarea es analizar los archivos de código proporcionados y compararlos con los estándares de codificación dados.
+        
+Responde en formato Markdown y en {}. Para cada hallazgo, utiliza una notación similar a un 'diff':
+- Usa '-' para incumplimientos o problemas encontrados.
+- Usa '+' para recomendaciones o posibles mejoras.
+- Usa '!' para comentarios u observaciones generales.
+
+Ejemplo de formato de respuesta:
+```diff
+- src/main.rs: Línea 10: La función 'foo' carece de documentación.
++ src/main.rs: Considera agregar pruebas unitarias para la función 'bar'.
+! src/utils.rs: La calidad general del código es buena y sigue las convenciones.
+```
+
+--- INICIO ESTÁNDARES DE CODIFICACIÓN ---
+{}
+--- FIN ESTÁNDARES DE CODIFICACIÓN ---
+--- INICIO DE ARCHIVO OBJETIVO ---
+{}
+--- FIN DE ARCHIVO OBJETIVO ---
+--- INICIO ARCHIVOS DE CÓDIGO A ANALIZAR ---
+{}
+--- FIN ARCHIVOS DE CÓDIGO A ANALIZAR ---",
+        output_language,
         standards_content,
+        example_prompt_section, // This will be empty if no example was provided
         file_contents.join("\n---\n")
     );
 
-    // Log the prompt length
-    println!("Prompt length: {}", prompt.len());
+    // Log the prompt length for debugging
+    println!("Prompt length: {} characters", prompt.len());
 
-    // Call the appropriate LLM API
+    // Call the appropriate LLM API based on the provider
     let response = match llm_provider.as_str() {
         "openai" => call_openai_api(&prompt, &api_key, &model).await?,
         "anthropic" => call_anthropic_api(&prompt, &api_key, &model).await?,
         "google" => call_google_api(&prompt, &api_key, &model).await?,
         "local" => call_local_llm(&prompt, &model).await?,
-        _ => return Err("Invalid LLM provider".to_string()),
+        _ => return Err("Proveedor de LLM no válido.".to_string()),
     };
 
     Ok(response)
 }
+
 
 async fn call_openai_api(prompt: &str, api_key: &str, model: &str) -> Result<String, String> {
     let client = reqwest::Client::new();
@@ -117,16 +159,15 @@ async fn call_openai_api(prompt: &str, api_key: &str, model: &str) -> Result<Str
         .map_err(|e| e.to_string())?;
 
     let response_json: serde_json::Value = response.json().await.map_err(|e| e.to_string())?;
-    let content = response_json["choices"][0]["message"]["content"].as_str().unwrap_or("").to_string();
-    Ok(content)
+    normalize_response(&response_json, "openai")
 }
 
 async fn call_anthropic_api(prompt: &str, api_key: &str, model: &str) -> Result<String, String> {
     let client = reqwest::Client::new();
     let request_body = serde_json::json!({
         "model": model,
-        "prompt": format!("\n\nHuman: {}\n\nAssistant:", prompt),
-        "max_tokens_to_sample": 1000,
+        "max_tokens": 2048,
+        "messages": [{"role": "user", "content": prompt}]
     });
 
     let response = client.post("https://api.anthropic.com/v1/messages")
@@ -139,9 +180,9 @@ async fn call_anthropic_api(prompt: &str, api_key: &str, model: &str) -> Result<
         .map_err(|e| e.to_string())?;
 
     let response_json: serde_json::Value = response.json().await.map_err(|e| e.to_string())?;
-    let content = response_json["content"][0]["text"].as_str().unwrap_or("").to_string();
-    Ok(content)
+    normalize_response(&response_json, "anthropic")
 }
+
 
 async fn call_google_api(prompt: &str, api_key: &str, model: &str) -> Result<String, String> {
     let client = reqwest::Client::new();
@@ -165,26 +206,25 @@ async fn call_google_api(prompt: &str, api_key: &str, model: &str) -> Result<Str
     let response_json: serde_json::Value = response.json().await.map_err(|e| e.to_string())?;
     println!("Google API full response: {:?}", response_json);
 
-    let content = response_json["candidates"][0]["content"]["parts"][0]["text"].as_str().unwrap_or("").to_string();
-    Ok(content)
+    normalize_response(&response_json, "google")
 }
 
 async fn call_local_llm(prompt: &str, model: &str) -> Result<String, String> {
     let client = reqwest::Client::new();
-    let (base_url, model_name) = if model.starts_with("Ollama:") {
-        ("http://localhost:11434/api/generate", model.replace("Ollama: ", ""))
+    let (base_url, model_name, provider) = if model.starts_with("Ollama:") {
+        ("http://localhost:11434/api/generate", model.replace("Ollama: ", ""), "ollama")
     } else if model.starts_with("LM Studio:") {
-        ("http://localhost:1234/v1/chat/completions", model.replace("LM Studio: ", ""))
+        ("http://localhost:1234/v1/chat/completions", model.replace("LM Studio: ", ""), "lm_studio")
     } else {
         return Err("Invalid local LLM model format".to_string());
     };
 
-    let request_body = if base_url.contains("ollama") {
+    let request_body = if provider == "ollama" {
         serde_json::json!({
             "model": model_name,
             "prompt": prompt,
             "stream": false,
-            "keep_alive": "5m" // Add keep_alive for Ollama
+            "keep_alive": "5m"
         })
     } else {
         serde_json::json!({
@@ -195,27 +235,59 @@ async fn call_local_llm(prompt: &str, model: &str) -> Result<String, String> {
     };
 
     let response = client.post(base_url)
-        .header("Content-Type", "application/json") // Explicitly set Content-Type
+        .header("Content-Type", "application/json")
         .json(&request_body)
         .send()
         .await
         .map_err(|e| e.to_string())?;
 
     let response_json: serde_json::Value = response.json().await.map_err(|e| e.to_string())?;
-
-    // Print the full JSON response for debugging
     println!("Full LLM response: {:?}", response_json);
 
-    let content = if base_url.contains("ollama") {
-        response_json["response"].as_str().unwrap_or("").to_string()
-    } else {
-        response_json["choices"][0]["message"]["content"].as_str().unwrap_or("").to_string()
+    normalize_response(&response_json, provider)
+}
+
+fn normalize_response(response_json: &serde_json::Value, provider: &str) -> Result<String, String> {
+    let content_result = match provider {
+        "openai" | "lm_studio" => response_json
+            .get("choices")
+            .and_then(|c| c.get(0))
+            .and_then(|m| m.get("message"))
+            .and_then(|c| c.get("content"))
+            .and_then(|s| s.as_str())
+            .map(String::from),
+        "anthropic" => response_json
+            .get("content")
+            .and_then(|c| c.get(0))
+            .and_then(|t| t.get("text"))
+            .and_then(|s| s.as_str())
+            .map(String::from),
+        "google" => response_json
+            .get("candidates")
+            .and_then(|c| c.get(0))
+            .and_then(|c| c.get("content"))
+            .and_then(|p| p.get("parts"))
+            .and_then(|parts| parts.get(0)) // Get the first part directly
+            .and_then(|part| part.get("text"))
+            .and_then(|s| s.as_str())
+            .map(String::from),
+        "ollama" => response_json
+            .get("response")
+            .and_then(|s| s.as_str())
+            .map(String::from),
+        _ => return Err("Invalid LLM provider for normalization".to_string()),
     };
 
-    if content.is_empty() {
-        Ok(format!("LLM returned empty content. Full response: {}", response_json.to_string()))
-    } else {
-        Ok(content)
+    match content_result {
+        Some(content) if !content.is_empty() => Ok(content),
+        _ => {
+            let error_message = format!(
+                "LLM returned empty or invalid content. Full response: {}",
+                response_json.to_string()
+            );
+            println!("{}", error_message); // Log the error for debugging
+            Err(error_message)
+        }
     }
 }
 
@@ -257,6 +329,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![greet, get_local_llm_models, analyze_code, save_llm_config, load_llm_config])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

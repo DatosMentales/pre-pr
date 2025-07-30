@@ -2,7 +2,6 @@
   import { open } from '@tauri-apps/plugin-dialog';
   
   import { invoke } from '@tauri-apps/api/core';
-  import { marked } from 'marked';
 
   let selectedFiles = $state<string[]>([]);
   let standardsFile = $state<string | null>(null);
@@ -10,31 +9,12 @@
   let llmProvider = $state<'openai' | 'anthropic' | 'google' | 'local'>('openai');
   let apiKey = $state('');
   let model = $state('');
+  let outputLanguage = $state('english');
   let evaluationResult = $state('');
+  let evaluationError = $state<string | null>(null);
   let isLoading = $state(false);
   let localModels = $state<string[]>([]);
   let darkMode = $state(false); // State for dark mode
-
-  // Custom Marked renderer
-  const renderer = new marked.Renderer();
-  renderer.paragraph = (text) => {
-    if (text.startsWith('+ ')) {
-      return `<p class="diff-added">${text}</p>\n`;
-    }
-    if (text.startsWith('- ')) {
-      return `<p class="diff-removed">${text}</p>\n`;
-    }
-    if (text.startsWith('! ')) {
-      return `<p class="diff-comment">${text}</p>\n`;
-    }
-    return `<p>${text}</p>\n`;
-  };
-
-  let renderedHtml = $derived(marked.parse(evaluationResult, {
-    renderer: renderer,
-    gfm: true, // Enable GitHub Flavored Markdown
-    breaks: true, // Enable GFM line breaks
-  })); // Derived state for rendered HTML
 
   async function selectFiles() {
     const result = await open({
@@ -134,6 +114,25 @@
     }
   }
 
+  function clearAll() {
+    selectedFiles = [];
+    standardsFile = null;
+    exampleFile = null;
+    evaluationResult = '';
+    evaluationError = null;
+  }
+
+  async function copyToClipboard() {
+    if (evaluationResult) {
+      try {
+        await navigator.clipboard.writeText(evaluationResult);
+        alert('Results copied to clipboard!');
+      } catch (err) {
+        alert('Failed to copy results.');
+      }
+    }
+  }
+
   async function runEvaluation() {
     if (selectedFiles.length === 0 || !standardsFile) {
       alert('Please select source files and a standards file.');
@@ -152,18 +151,28 @@
 
     isLoading = true;
     evaluationResult = '';
+    evaluationError = null;
 
     try {
       const result = await invoke('analyze_code', {
         filePaths: selectedFiles,
         standardsPath: standardsFile,
+        exampleFilePath: exampleFile,
         llmProvider: llmProvider,
         apiKey: apiKey,
         model: model,
+        outputLanguage: outputLanguage,
       });
-      evaluationResult = result as string;
+      if (typeof result === 'object' && result !== null && 'Ok' in result) {
+        evaluationResult = result.Ok as string;
+      } else if (typeof result === 'object' && result !== null && 'Err' in result) {
+        evaluationError = result.Err as string;
+      } else {
+        // Fallback for unexpected formats
+        evaluationResult = result as string;
+      }
     } catch (error) {
-      evaluationResult = `<p class="text-red-500">Error: ${error}</p>`;
+      evaluationError = `Error: ${error}`;
     } finally {
       isLoading = false;
     }
@@ -225,7 +234,7 @@
         </div>
 
         <div class="mb-8 p-6 bg-gray-50 dark:bg-gray-700 rounded-lg shadow-sm transition-colors duration-300">
-          <h2 class="text-2xl font-semibold text-gray-700 dark:text-white mb-4">3. Configure LLM</h2>
+          <h2 class="text-2xl font-semibold text-gray-700 dark:text-white mb-4">4. Configure LLM</h2>
           <div class="mb-4">
             <label class="block text-gray-700 dark:text-gray-200 text-sm font-bold mb-2" for="llm-provider">
               LLM Provider
@@ -276,6 +285,21 @@
             </div>
           {/if}
 
+          <div class="mb-4">
+            <label class="block text-gray-700 dark:text-gray-200 text-sm font-bold mb-2" for="output-language">
+              Output Language
+            </label>
+            <div class="relative">
+              <select id="output-language" bind:value={outputLanguage} class="block appearance-none w-full bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 text-gray-700 dark:text-white py-3 px-4 pr-8 rounded-lg leading-tight focus:outline-none focus:bg-white dark:focus:bg-gray-600 focus:border-blue-500 shadow-sm transition-colors duration-300">
+                <option value="english">English</option>
+                <option value="spanish">Spanish</option>
+              </select>
+              <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-200">
+                <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+              </div>
+            </div>
+          </div>
+
           <div class="flex space-x-4 mt-6">
             <button onclick={saveConfig} class="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50">
               Save Config
@@ -284,6 +308,10 @@
               Load Config
             </button>
           </div>
+
+          <button onclick={clearAll} class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 mt-4">
+            Clear
+          </button>
 
           <button onclick={runEvaluation} class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 mt-4" disabled={isLoading}>
             {#if isLoading}
@@ -295,12 +323,29 @@
       </div>
 
       <!-- Right Column: Results -->
-      <div class="p-6 bg-gray-50 dark:bg-gray-700 rounded-lg shadow-sm flex flex-col transition-colors duration-300 text-white">
-        <h2 class="text-2xl font-semibold text-gray-700 dark:text-white mb-4">Evaluation Results</h2>
-        <div class="flex-grow bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-600 overflow-auto h-[calc(100vh-200px)] transition-colors duration-300">
-          {#if evaluationResult}
+      <div class="p-6 bg-gray-50 dark:bg-gray-700 rounded-lg shadow-sm flex flex-col transition-colors duration-300">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-2xl font-semibold text-gray-700 dark:text-white">Evaluation Results</h2>
+          <button onclick={copyToClipboard} class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50">
+            Copy
+          </button>
+        </div>
+        <div class="flex-grow bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-600 overflow-auto h-[calc(100vh-200px)] transition-colors duration-300 text-gray-800 dark:text-white">
+          {#if evaluationError}
+            <p class="text-red-500">{evaluationError}</p>
+          {:else if evaluationResult}
             <div class="prose dark:prose-invert max-w-none">
-              {@html renderedHtml}
+              {#each evaluationResult.split('\n') as line}
+                {#if line.startsWith('-')}
+                  <p class="diff-removed">{line}</p>
+                {:else if line.startsWith('+')}
+                  <p class="diff-added">{line}</p>
+                {:else if line.startsWith('!')}
+                  <p class="diff-comment">{line}</p>
+                {:else}
+                  <p>{line}</p>
+                {/if}
+              {/each}
             </div>
           {:else}
             <p class="text-gray-500 dark:text-gray-400">Results will be displayed here.</p>
@@ -314,11 +359,14 @@
 <style lang="postcss">
   .diff-added {
     color: #10B981; /* green-600 */
+    display: block;
   }
   .diff-removed {
     color: #EF4444; /* red-600 */
+    display: block;
   }
   .diff-comment {
-    color: #3B82F6; /* blue-600 */
+    color: #F59E0B; /* amber-500 (orange) */
+    display: block;
   }
 </style>
