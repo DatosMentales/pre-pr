@@ -1,0 +1,61 @@
+Lineamientos de Desarrollo
+Nomenclatura de objetos en Unity Catalog
+Catálogos
+Cada tabla debe ser creada en el catálogo correspondiente de acuerdo a su naturaleza.
+• l1_raw: contiene las tablas ingestadas tal cual están en el sistema origen, sin cambios de formato en sus columnas ni aplicación de lógicas adicionales.
+• l2_foundation: contiene las tablas que se crean a partir de aplicar transformaciones (cálculos, filtros, agrupaciones, joins, casts, etc.) a tablas de l1_raw o l2_foundation. 
+ 
+• l3_foundation: contiene las tablas que están modeladas dimensionalmente, es decir, tablas de hechos y dimensiones.
+• l4_access: contiene, generalmente, vistas y es desde donde usuarios finales, Power BI y otras aplicaciones consumen la información. 
+Esquemas
+En el catálogo l1_raw el nombre del esquema debe estar relacionado con el sistema origen desde donde se están ingestando las tablas. Ej: hyperion, sap, cis. 
+Para el caso de los archivos ingestados desde el sitio de Sharepoint ‘Azure DB’, se debe utilizar el esquema ‘sharepoint’.
+En los catálogos l2_foundation, l3_foundation y l4_access, el esquema debe estar relacionado con el proyecto o temática a la que corresponde la tabla. Si son tablas genéricas o globales (cross a todos los proyectos), el esquema a utilizar es ‘common’. El nombre del esquema debe estar en inglés, en minúsculas y utilizar el formato snake_case. Siempre que sea posible, se deben evitar abreviaturas que dificulten la comprensión. Ejemplos: price_engine, sentiment_analysis, rfm, common.
+Observación importante: Actualmente los archivos ingestados desde Sharepoint no están organizados bajo el esquema 'sharepoint'. Además, algunos esquemas contienen el prefijo 'app' cuando no corresponde. Esta situación representa una deuda técnica que deberá resolverse en el futuro.
+ 
+Tablas/Vistas
+Consideración general: Se debe evitar utilizar prefijos indicando el proyecto ya que es redundante con el nombre del esquema. Sharepoint es la única excepción a esta regla.
+l1_raw
+El nombre de la tabla debe ser el mismo al de la tabla en el sistema origen. Ejemplo tabla de WH:  vw_country.
+Para el caso de los archivos ingestados desde el sitio de Sharepoint ‘Azure DB’, se debe utilizar un prefijo que permita agrupar las tablas de la misma temática o proyecto. Ejemplo tabla del proyecto loyalty: ly_point_accounts.
+l2_foundation
+El nombre de la tabla debe estar en inglés, en minúsculas y utilizar el formato snake_case. Siempre que sea posible, se deben evitar abreviaturas que dificulten la comprensión. El nombre debe comenzar con uno de los siguientes prefijos, que indica el tipo de tabla, seguido de una descripción clara:
+• lk (lookup): para tablas de datos maestros. Ejemplo: lk_daypart
+• tr (transaction): para tablas con transacciones. Ejemplo: tr_guest_counts
+• hist (history): para tablas con datos con vigencia. Ejemplo: hist_price_snapshot
+Observación importante: Es posible que algunas tablas no encajen claramente en ninguna de las categorías definidas. En esos casos, se puede considerar la creación de una nueva categoría o decidir que la tabla no requiere un prefijo específico y solo tendrá la descripción. Estos casos pueden ser revisados en conjunto con el equipo para acordar la mejor solución. Ejemplo: ft_dlv_ord_discounts.
+l3_foundation
+El nombre de la tabla debe estar en inglés, en minúsculas y utilizar el formato snake_case. Siempre que sea posible, se deben evitar abreviaturas que dificulten la comprensión. El nombre debe comenzar con uno de los siguientes prefijos, según el tipo de tabla, seguido de una descripción clara:
+• fact: para tablas de hechos. Ejemplo: fact_sales_cost_valued. Si aplica, se puede agregar un sufijo indicando el nivel de agregación (h=hora, d=día, m=mes, etc.) Ejemplo: fact_sales_d, fact_sales_m
+• dim: para tablas de dimensión. Ejemplo: dim_channel_master.
+Observación importante: Actualmente las tablas de dimensión no cuentan con surrogate keys. Además, las tablas de hechos incluyen columnas descriptivas, cuando deberían contener únicamente surrogate keys de dimensiones y métricas numéricas. Esta situación representa una deuda técnica que deberá resolverse en el futuro.
+l4_access
+El nombre de la vista debe mantener el mismo formato que el de la tabla principal de la cual depende.
+En el caso de las dimensiones se deben seguir las siguientes reglas:
+• Si el código de la vista no tiene ningún tipo de filtros, se debe mantener el mismo nombre de la tabla. Ej: dim_location.
+• Si el código de la vista filtra la instancia actual del elemento (end_dt = ‘9999-12-31'), se debe agregar el sufijo “_current”. Ej: dim_location_current.
+• Si el código de la vista tiene filtros con alguna lógica de negocio, se debe agregar un sufijo con una descripción acorde. Ej: dim_location_ops.
+ 
+Columnas
+l1_raw
+El nombre de las columnas debe ser el mismo al de la tabla en el origen.
+l2_foundation y l3_foundation
+El nombre de la columna debe estar en inglés, en minúsculas y utilizar el formato snake_case. Siempre que sea posible, se deben evitar abreviaturas que dificulten la comprensión. El nombre debe finalizar con uno de los siguientes sufijos, según el tipo de columna:
+• id: identificador que tiene una descripción en una tabla maestra. Ejemplo: location_id.
+• cd: código que no tiene descripción en una tabla maestra. Ejemplo: currency_cd.
+• desc: texto descriptivo. Ejemplo: country_desc.
+• amt: valor expresado en unidades monetarias. Ejemplo: sales_tax_amt.
+• qty: cantidad no monetaria. Ejemplo: sales_detail_lines_qty.
+• pct: valor expresado en porcentaje. Ejemplo: conversion_pct.
+• dt: fecha sin detalle de hora. Ejemplo: reporting_last_year_dt.
+• ts: fecha con detalle de hora. Ejemplo: sales_start_ts.
+• flg: bandera cuyos valores posibles son unicamente 1 y 0. Ejemplo: valid_flg.
+• num: número. Ejemplo: sales_transaction_line_num.
+• name: debe utilizarse exclusivamente para el nombre de una persona. Ejemplo: client_name.
+Observación importante: Es posible que algunas columnas no encajen claramente en ninguna de las categorías definidas. En esos casos, se puede considerar la creación de una nueva categoría o decidir que la columna no requiere una terminación específica. Estos casos pueden ser revisados en conjunto con el equipo para acordar la mejor solución.
+Es importante definir el tipo de dato correcto a cada columna. Por ejemplo:
+• Si se necesita almacenar una fecha sin hora, se debe utilizar DATE en lugar de TIMESTAMP.
+• Para valores binarios como 1 y 0, se debe utilizar TINYINT o BOOLEAN en lugar de INT.
+• No se debe utilizar el tipo DOUBLE. En su lugar se debe utilizar el tipo DECIMAL.
+l4_access
+El nombre de las columnas debe ser el mismo al de la tabla origen. Si se generan nuevas columnas, deben respetar la nomenclatura descripta en la sección anterior. Las vistas no deben tener transformaciones computacionalmente complejas. Si esa es la necesidad, dicha transformación debe ser aplican en l2_foundation o l3_foundation.
