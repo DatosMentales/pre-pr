@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { open } from '@tauri-apps/plugin-dialog';
+  import { open as openDialog } from '@tauri-apps/plugin-dialog';
   
   import { invoke } from '@tauri-apps/api/core';
 
@@ -17,7 +17,7 @@
   let darkMode = $state(false); // State for dark mode
 
   async function selectFiles() {
-    const result = await open({
+    const result = await openDialog({
       multiple: true,
     });
     if (Array.isArray(result)) {
@@ -28,7 +28,7 @@
   }
 
   async function selectStandardsFile() {
-    const result = await open({
+    const result = await openDialog({
       multiple: false,
       filters: [{
         name: 'Standards',
@@ -41,7 +41,7 @@
   }
 
   async function selectExampleFile() {
-    const result = await open({
+    const result = await openDialog({
       multiple: false,
       filters: [{
         name: 'Example File',
