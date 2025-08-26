@@ -1,0 +1,266 @@
+col_name,data_type,comment
+SALES_TRANSACTION_ID,bigint,The unique identifier for each sales transaction.
+STORE_COMPONENT_ID,string,The identifier for the store component where the sales transaction took place.
+POS_REGISTER_ID,string,The identifier for the point of sale (POS) register used for the sales transaction.
+ORDER_NUM,string,The order number associated with the sales transaction.
+SALES_START_DTTM,timestamp,The timestamp when the sales transaction started.
+SALES_END_DTTM,timestamp,The timestamp when the sales transaction ended.
+SALES_TYPE_ID,string,The identifier for the type of sales transaction. Value 1 means customer sales.
+SALES_ASSOCIATE_ID,string,The identifier for the sales associate involved in the sales transaction.
+LOYALTY_CARD_NUM,int,The loyalty card number associated with the sales transaction.
+DAYPART_HOUR_ID,string,The identifier for the specific hour of the day when the sales transaction occurred.
+MANAGER_ASSOCIATE_ID,string,The identifier for the manager associate involved in the sales transaction.
+SALES_DETAIL_LINES_QTY,"decimal(38,18)",The quantity of sales detail lines in the sales transaction.
+SALES_GROSS_AMT,"decimal(38,18)",The gross amount of sales in the sales transaction.
+SALES_DISCOUNT_AMT,"decimal(38,18)",The amount of discount applied to the sales transaction.
+SALES_TAX_AMT,"decimal(38,18)",The amount of tax applied to the sales transaction.
+SALES_BUSINESS_DT,date,The business date of the sales transaction.
+CALENDAR_MONTH_ID,int,The identifier for the calendar month when the sales transaction occurred.
+TAX_PAYER_ID,string,The identifier for the tax payer associated with the sales transaction.
+SALES_GROSS_USDD_AMT,"decimal(38,18)",The gross amount of sales in US Dollars (USD) for the sales transaction.
+SALES_GROSS_USDC_AMT,"decimal(38,18)",The gross amount of sales in US Dollar Cents (USDC) for the sales transaction.
+SALES_TAX_USDD_AMT,"decimal(38,18)",The amount of sales tax in US Dollars (USD) for the sales transaction.
+SALES_TAX_USDC_AMT,"decimal(38,18)",The amount of sales tax in US Dollar Cents (USDC) for the sales transaction.
+SALES_DISCOUNT_USDD_AMT,"decimal(38,18)",The amount of discount applied to the sales transaction in US Dollars (USD).
+SALES_DISCOUNT_USDC_AMT,"decimal(38,18)",The amount of discount applied to the sales transaction in US Dollar Cents (USDC).
+CURRENCY_CD,string,The currency code used for the sales transaction.
+LOCATION_ID,string,The identifier for the location where the sales transaction took place.
+SALE_AREA_ID,string,The identifier for the sale area where the sales transaction occurred.
+SALES_PAYMENT_LINES_QTY,"decimal(38,18)",The quantity of payment lines in the sales transaction.
+COUNTRY_ID,string,The identifier for the country associated with the sales transaction. Value '086' = 'brasil'
+AUDITORY_NUMBER,string,The auditory number associated with the sales transaction.
+LOAD_NUM,string,The load number associated with the sales transaction.
+IDENTIFICATIONTYPE,string,The type of identification used for the sales transaction.
+IDENTIFICATIONNUMBER,bigint,The identification number associated with the sales transaction.
+POD,string,The point of delivery (POD) associated with the sales transaction.
+REMOTEPOD,string,The remote point of delivery (POD) associated with the sales transaction.
+SALEKEY,string,The key identifier for the sale.
+SPECIALSALETYPE,string,The special type of sale associated with the sales transaction.
+TABLESERVICEAREA,string,The identifier for the table service area where the sales transaction occurred.
+FISCAL_TYPE,string,The fiscal type associated with the sales transaction.
+FISCAL_SERIES,string,The fiscal series associated with the sales transaction.
+ACTUAL_BUSINESS_DT,timestamp,The actual business date of the sales transaction.
+SALETYPE,int,The type of sale transaction.
+SALEDESCRIPTION,string,The description of the sale transaction.
+FISCALCODE3,string,The third fiscal code associated with the sales transaction.
+FISCALCODE4,string,The fourth fiscal code associated with the sales transaction.
+FISCALCODE5,string,The fifth fiscal code associated with the sales transaction.
+SPECIALSALEORDERLD,string,The special sale order ID associated with the sales transaction.
+SPECIALSALEMETHOD,string,The special sale method used for the sales transaction.
+3PLNAME,string,The name of the third-party logistics provider involved in the sales transaction.
+3PLORDERID,string,The order ID associated with the third-party logistics provider for the sales transaction.
+CHANNEL_ID,int,The identifier for the channel through which the sales transaction was made.
+INTEGRATED,"decimal(38,18)",Indicates whether the sales transaction is integrated with other systems or processes.
+LOYALTY_MCID,string,The MCID (Marketing Cloud ID) associated with the loyalty program for the sales transaction.
+LOYALTY_CPF,string,The CPF (Cadastro de Pessoas Físicas) associated with the loyalty program for the sales transaction.
+SALE_SUBCHANNEL_ID,int,The identifier for the subchannel through which the sales transaction was made.
+DIGITAL_COUPON_FLG,int,Indicates whether a digital coupon was used in the sales transaction.
+VIRTUAL_STORE_CD,string,The code for the virtual store where the sales transaction took place.
+SALES_TRANSACTION_CDC,timestamp,The change data capture (CDC) value for the sales transaction.
+SALES_DATE,date,The date of the sales transaction.
+MACRO_SEGMENTO,string,The macro segment associated with the sales transaction.
+MICRO_SEGMENTO,string,The identifier for the micro segment associated with the sales transaction.
+NFCE_CPF_CNPJ,string,The CPF or CNPJ number associated with the sales transaction.
+SALE_AREA_GROUP_ID,int,The identifier for the sale area group where the sales transaction took place.
+PARTNER_DESC,string,The description of the partner associated with the sales transaction.
+SPECIAL_SALE_STOREAREA,string,The identifier for the special sale store area where the sales transaction occurred.
+PROGRAMA_ID,string,The identifier for the program associated with the sales transaction.
+COMPONENT_POS_ID,string,The identifier for the component point of sale (POS) used for the sales transaction.
+SALES_PROGRAM,string,The program name associated with the sales transaction.
+NANO_SEGMENTO,string,The identifier for the nano segment associated with the sales transaction.
+NANO_SEGMENTO_REPORTING,string,The reporting identifier for the nano segment associated with the sales transaction.
+ADLS_AUDIT_RUN_ID,string,The identifier for the ADLS audit run associated with the sales transaction.
+ADLS_AUDIT_DATE,timestamp,The date of the ADLS audit associated with the sales transaction.
+# Partition Information,,
+# col_name,data_type,comment
+SALES_BUSINESS_DT,date,The business date of the sales transaction.
+col_name,data_type,comment
+SALE_SUBCHANNEL_ID,int,null
+SALE_SUBCHANNEL_DESC,string,null
+SALE_CHANNEL_ID,int,null
+ADLS_AUDIT_RUN_ID,string,null
+ADLS_AUDIT_DATE,timestamp,null
+col_name,data_type,comment
+SALE_CHANNEL_ID,int,null
+SALE_CHANNEL_DESC,string,null
+ADLS_AUDIT_RUN_ID,string,null
+ADLS_AUDIT_DATE,timestamp,null
+
+╭─tapy@tapy in repo: pre-pr on  master [$!?] is  v0.1.0 via  v24.6.0 via  v3.13.7 took 0s
+╰─λ wl-paste >> tables.csv
+col_name,data_type,comment
+COUNTRY_ID,string,null
+COUNTRY_START_DT,date,null
+COUNTRY_END_DT,date,null
+COUNTRY_NAME_DESC,string,null
+COUNTRY_OWNERSHIP_ID,string,null
+CORP_REGION_ID,string,null
+CORP_DIVISION_ID,string,null
+CURRENCY_CD,string,null
+COUNTRY_ISO_CD,string,null
+COUNTRY_ABBREVIATION_CD,string,null
+COUNTRY_SHORT_ABBREVIATION_CD,string,null
+COUNTRY_TIMEZONE,string,null
+COUNTRY_SALES_FLG,tinyint,null
+ADLS_AUDIT_RUN_ID,string,null
+ADLS_AUDIT_DATE,timestamp,null
+col_name,data_type,comment
+SALES_TRANSACTION_ID,bigint,null
+LOCATION_ID,string,null
+PAYMENT_SUBTYPE_ID,string,null
+ORDER_NUM,string,null
+POS_REGISTER_ID,string,null
+PAYMENT_AMT,"decimal(38,18)",null
+PAYMENT_CASH_RETURN_AMT,"decimal(38,18)",null
+PAYMENT_SURCHARGE_AMT,"decimal(38,18)",null
+PAYMENT_INSTALLMENT_QTY,int,null
+PAYMENT_LINE_NUM,int,null
+SALES_BUSINESS_DT,timestamp,null
+PAYMENT_USDD_AMT,"decimal(38,18)",null
+PAYMENT_USDC_AMT,"decimal(38,18)",null
+CURRENCY_CD,string,null
+COUNTRY_ID,string,null
+ACTUAL_BUSINESS_DT,timestamp,null
+OPERATION_TYPE,int,null
+OPERATION_TYPE_NAME,string,null
+LOAD_NUM,string,null
+SALES_TYPE_ID,string,null
+PAYMENT_NET_AMT,"decimal(38,18)",null
+CDC,timestamp,null
+PAYMENT_OPERATIONID,string,null
+PAYMENT_GATEWAY,string,null
+PAYMENT_GATEWAYID,string,null
+ADLS_AUDIT_RUN_ID,string,null
+ADLS_AUDIT_DATE,timestamp,null
+TIP_AMT,"decimal(19,6)",null
+# Partition Information,,
+# col_name,data_type,comment
+SALES_BUSINESS_DT,timestamp,null
+col_name,data_type,comment
+LOJA_ID,string,ID de la tienda en iFood
+COMPETENCIA,string,Mes de competencia (YYYY-MM)
+DATA_FATO_GERADOR,string,Fecha y hora del evento generador
+FATO_GERADOR,string,"Tipo de evento (Venda, Cancelamento, etc.)"
+TIPO_LANCAMENTO,string,"Tipo de lanzamiento (Recebimento, Cobrança, etc.)"
+DESCRICAO_LANCAMENTO,string,Descripción del lanzamiento
+VALOR,"decimal(20,2)",Valor del lanzamiento individual
+BASE_CALCULO,"decimal(20,2)",Base de cálculo para tasas
+PERCENTUAL_TAXA,"decimal(10,4)",Porcentaje de la tasa aplicada
+PEDIDO_ASSOCIADO_IFOOD,string,ID único del pedido en iFood (PK)
+PEDIDO_ASSOCIADO_IFOOD_CURTO,string,ID corto del pedido
+PEDIDO_ASSOCIADO_EXTERNO,string,ID externo del pedido (si aplica)
+MOTIVO_CANCELAMENTO,string,Motivo del cancelamiento (original)
+DESCRICAO_OCORRENCIA,string,Descripción de la ocurrencia
+DATA_CRIACAO_PEDIDO_ASSOCIADO,string,Fecha y hora de creación del pedido
+DATA_REPASSE_ESPERADA,string,Fecha esperada de repasse
+VALOR_TRANSACAO,"decimal(20,2)",Valor total de la transacción
+LOJA_ID_CURTO,string,ID corto de la tienda
+LOJA_ID_EXTERNO,string,ID externo de la tienda
+CNPJ,string,CNPJ de la tienda
+TITULO,string,Título asociado al lanzamiento
+DATA_FATURAMENTO,string,Fecha de facturación del lanzamiento
+DATA_APURACAO_INICIO,string,Fecha de inicio de apuración
+DATA_APURACAO_FIM,string,Fecha de fin de apuración
+VALOR_CESTA_INICIAL,"decimal(20,2)",Valor inicial de la cesta
+VALOR_CESTA_FINAL,"decimal(20,2)",Valor final de la cesta
+RESPONSAVEL_TRANSACAO,string,Responsable de la transacción (iFood/Loja)
+CANAL_VENDAS,string,Canal de ventas (siempre IFOOD aquí)
+CONCILIACION_BANCARIA,"decimal(20,2)",Suma de valores con IMPACTO_NO_REPASSE = SIM
+VALOR_CANCELADO,"decimal(20,2)",Suma de valores cancelados (positivo)
+VALOR_COMPENSADO,"decimal(20,2)",Suma de valores compensados (positivo)
+MONTO_COBRADO,"decimal(20,2)",Monto cobrado en Vendas (positivo)
+MONTO_OTROS,"decimal(20,2)",Monto de otros eventos (positivo)
+MONTO_COBRADO_TERCERO,"decimal(20,2)",Monto cobrado en Ocorrencias (positivo)
+MES,int,Mes de creación del pedido (1-12)
+CODIGO,string,Primeros 3 caracteres del motivo de cancelamiento
+MOTIVO_CANCELAMENTOS,string,Motivo del cancelamiento completo
+Venda_Bruta,"decimal(20,2)",Agregado: Suma de Vendas con impacto SIM
+Venda_Bruta_Sem_Impacto,"decimal(20,2)",Agregado: Suma de Vendas con impacto NAO
+Taxas_e_Tarifas,"decimal(20,2)",Agregado: Suma de Cobranças
+Cancelamento_Total,"decimal(20,2)",Agregado: Suma de Cancelamentos Totais (sin Cobranças)
+Cancelamento_Total_Sem_impacto,"decimal(20,2)",Agregado: Suma de Cancelamentos Totais (sin Cobranças) con impacto NAO
+Cancelamento_Parcial,"decimal(20,2)",Agregado: Suma de Cancelamentos Parciais y Ocorrencias específicas (sin Cobranças)
+Cancelamento_Parcial_Sem_impacto,"decimal(20,2)",Agregado: Suma de Cancelamentos Parciais y Ocorrencias específicas (sin Cobranças) con impacto NAO
+Ressarcimento,"decimal(20,2)",Agregado: Suma de Ressarcimentos (sin Cobranças)
+Outros_Agg,"decimal(20,2)",Agregado: Suma de otros Fatos Geradores (sin Cobranças y Ocorrencias específicas)
+ADLS_AUDIT_RUN_ID,string,Identifier of the job run that modified the record.
+ADLS_AUDIT_DATE,timestamp,Timestamp indicating the last time the record was modified.
+# Partition Information,,
+# col_name,data_type,comment
+DATA_FATO_GERADOR,string,Fecha y hora del evento generador
+col_name,data_type,comment
+ID,string,Identificador del local.
+NAME,string,Nombre del local.
+CORPORATENAME,string,Nombre corporativo.
+LOCAL,string,Acrónimo de 3 letras.
+ADLS_AUDIT_RUN_ID,string,Identifier of the job run that modified the record.
+ADLS_AUDIT_DATE,timestamp,Timestamp indicating the last time the record was modified.
+col_name,data_type,comment
+LOCATION_BASE_ID,string,null
+COUNTRY_ID,string,null
+LOCATION_SOURCE_ID,int,null
+LOCATION_NAME,string,null
+LOCATION_ACRONYM_CD,string,null
+LOCATION_TYPE_ID,string,null
+LOCATION_OPEN_DT,timestamp,null
+LOCATION_CLOSE_DT,timestamp,null
+LOCATION_OPEN_DT_PADRE,timestamp,null
+LOCATION_CLOSE_DT_PADRE,timestamp,null
+SUPERVISION_AREA_ID,string,null
+LOCATION_TURN_KEY_DT,timestamp,null
+LOCATION_LEASE_ENDING_DT,timestamp,null
+LOCATION_CONTRACT_INF_ADJ_IND,string,null
+LOCATION_COUNTY_TRIBUTARY_ID,string,null
+LOCATION_NATIONAL_TRIBUTARY_ID,string,null
+CORP_PROJECT_GROUP_CD,string,null
+MARKETING_SEGMENT_ID,string,null
+LOC_STORE_OAK_ID,string,null
+LOC_STORE_NUM,int,null
+CORP_REGION_ROIP_ID,string,null
+COMPANY_ID,string,null
+DISTRIBUTION_CENTER_ID,string,null
+COST_CENTER_CD,string,null
+TYPE_OF_STORE,string,null
+BUILDING_SIZE,string,null
+PROPERTY,string,null
+IMAGE_MODEL,string,null
+OWNERSHIP_TYPE,string,null
+OWNERSHIPS,string,null
+OWNERSHIPS_DESC_REPORTING,string,null
+OPERATING_COMPANY,string,null
+LASTEST_REMODEL_YEAR,string,null
+GEO_ZONE_REPORTING_DESC,string,null
+GEO_ZONE_REPORTING_ID,string,null
+GEO_SUBZONE_REPORTING_DESC,string,null
+GEO_SUBZONE_REPORTING_ID,string,null
+CITY_REPORTING_DESC,string,null
+CITY_REPORTING_ID,string,null
+LOCATION_OASSIS_IND,string,null
+SEMANAS_OPERATIVAS,bigint,null
+ADLS_AUDIT_RUN_ID,string,null
+ADLS_AUDIT_DATE,timestamp,null
+col_name,data_type,comment
+TARGET_CURRENCY_CD,string,null
+SOURCE_CURRENCY_CD,string,null
+CURRENCY_TYPE_ID,string,null
+CURR_TRANS_CALENDAR_DT,date,null
+CURR_TRANSLATION_RATE_START_DT,date,null
+CURR_TRANSLATION_RATE_END_DT,date,null
+TARGET_TO_SOURCE_CURRENCY_RATE,"decimal(15,6)",null
+SOURCE_TO_TARGET_CURRENCY_RATE,"decimal(15,6)",null
+ADLS_AUDIT_RUN_ID,string,null
+ADLS_AUDIT_DATE,timestamp,null
+col_name,data_type,comment
+COUNTRY_ID,string,null
+COUNTRY_NAME_DESC,string,null
+COUNTRY_OWNERSHIP_ID,string,null
+CORP_REGION_ID,string,null
+CORP_DIVISION_ID,string,null
+CURRENCY_CD,string,null
+COUNTRY_ISO_CD,string,null
+COUNTRY_ABBREVIATION_CD,string,null
+ID_PAIS,string,null
+TIMEZONE,string,null
+FLAG,int,null
+ADLS_AUDIT_RUN_ID,string,null
+ADLS_AUDIT_DATE,timestamp,null
